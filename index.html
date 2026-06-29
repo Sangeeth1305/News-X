@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Live Geopolitics Dashboard</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+body {
+    background: #071327;
+    color: #e2e8f0;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+h1 {
+    color: #38bdf8;
+    font-size: 42px;
+    margin-bottom: 10px;
+}
+
+#lastUpdated {
+    color: #94a3b8;
+    font-size: 15px;
+}
+
+.ticker-container {
+    margin: 25px 0;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+}
+
+.ticker {
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 15px;
+}
+
+.ticker span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: tickerMove 45s linear infinite;
+    color: #facc15;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+@keyframes tickerMove {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+.search-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+#search {
+    width: 400px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: none;
+    background: #15233b;
+    color: white;
+    font-size: 16px;
+    outline: none;
+}
+
+/* Financial News Item Styles */
+.fin-news-item {
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: 0.2s ease;
+}
+.fin-news-item:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-2px);
+}
+.fin-news-item a {
+    color: #7dd3fc;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+.fin-news-item a:hover { 
+    text-decoration: underline; 
+}
+.fin-news-item small {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+/* Map Pulse Rings Animation */
+.pulse-ring {
+    width: 28px; 
+    height: 28px; 
+    border-radius: 50%;
+    border: 3px solid; 
+    opacity: 0;
+    animation: pulseRing 1.8s ease-out infinite;
+}
+@keyframes pulseRing {
+    0%   { transform: scale(0.3); opacity: 1; }
+    100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Map Popup Overrides to match theme */
+.leaflet-popup-content-wrapper {
+    background: rgba(15, 25, 50, 0.95) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+.leaflet-popup-tip {
+    background: rgba(15, 25, 50, 0.95) !important;
+}
+
+/* BUG FIX 1.4: Explicit map container layout styles */
+#worldMap {
+    width: 100%;
+    height: 420px;
+    min-height: 420px;
+    display: block;
+}
+
+/* BUG FIX 1.5: Direct leaflet dimensions reset override */
+.leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* BUG FIX 2.2: Custom engine scrollbar configurations */
+#finNewsPanel::-webkit-scrollbar {
+    width: 6px;
+}
+#finNewsPanel::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+}
+#finNewsPanel::-webkit-scrollbar-thumb {
+    background: rgba(56,189,248,0.4);
+    border-radius: 10px;
+}
+#finNewsPanel::-webkit-scrollbar-thumb:hover {
+    background: rgba(56,189,248,0.7);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.section {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 22px;
+    border: 1px solid rgba(255,255,255,0.08);
+    min-height: 600px;
+}
+
+.section h2 {
+    color: #38bdf8;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 12px;
+    font-size: 28px;
+}
+
+.news-item {
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    transition: 0.25s ease;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.news-item:hover {
+    transform: translateY(-3px);
+    background: rgba(255,255,255,0.08);
+}
+
+.news-item a {
+    color: #7dd3fc;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 17px;
+}
+
+.news-item a:hover {
+    text-decoration: underline;
+}
+
+.news-item p {
+    color: #cbd5e1;
+    margin-top: 10px;
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+.news-item small {
+    display: block;
+    margin-top: 10px;
+    color: #94a3b8;
+}
+
+.loading {
+    text-align: center;
+    margin-top: 30px;
+    color: #94a3b8;
+    font-size: 18px;
+}
+
+.error {
+    color: #ff6b6b;
+}
+
+/* Responsive Handling For Live Panel Layout */
+@media (max-width: 900px) {
+    #livePanel { flex-direction: column !important; }
+    #worldMap  { height: 320px !important; }
+}
+
+/* Status indicator for real-time sync */
+.map-status {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(15,25,50,0.9);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    color: #94a3b8;
+    border: 1px solid rgba(255,255,255,0.1);
+    z-index: 400;
+}
+
+.map-status.updating {
+    color: #facc15;
+}
+
+.map-status.synced {
+    color: #10b981;
+}
+
+.map-status.error {
+    color: #ef4444;
+}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>🌍 Geopolitics Dashboard</h1>
+    <div id="lastUpdated">Loading latest updates...</div>
+</header>
+
+<div class="ticker-container">
+    <div class="ticker">
+        <span id="tickerText">
+            Loading breaking news...
+        </span>
+    </div>
+</div>
+
+<div class="search-container">
+    <input type="text" id="search" placeholder="Search news and map events..." />
+</div>
+
+<div id="livePanel" style="display:flex; gap:20px; margin-bottom:30px; align-items:stretch;">
+
+  <div style="flex:1.2; min-width:0; display:flex; flex-direction:column; position:relative;">
+    <h2 style="color:#38bdf8; font-size:22px; margin-bottom:14px;">🗺️ Global Hotspots (Real-Time)</h2>
+    <div id="worldMap" style="border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); flex:1; position:relative;"></div>
+    <div id="mapStatus" class="map-status">Loading live data...</div>
+  </div>
+
+  <div style="flex:0.8; min-width:0; display:flex; flex-direction:column;">
+    <h2 style="color:#38bdf8; font-size:22px; margin-bottom:16px;">💹 Financial News</h2>
+    <div id="finNewsPanel" style="background:rgba(255,255,255,0.05); border-radius:20px; padding:22px; border:1px solid rgba(255,255,255,0.08); height:440px; max-height:440px; overflow-y:scroll; flex:1;">
+      <p style="color:#94a3b8;">Loading financial news...</p>
+    </div>
+    <div id="finNewsUpdated" style="color:#94a3b8; font-size:12px; margin-top:8px; text-align:right;"></div>
+  </div>
+
+</div>
+
+<div class="grid">
+
+    <div class="section">
+        <h2>🌍 Global Geopolitics</h2>
+        <div id="geoPoliticsNews"></div>
+    </div>
+
+    <div class="section">
+        <h2>🇮🇳 India Strategic News</h2>
+        <div id="indiaNews"></div>
+    </div>
+
+    <div class="section">
+        <h2>📍 Tamil Nadu Regional News</h2>
+        <div id="tamilNews"></div>
+    </div>
+
+</div>
+
+<div id="loading" class="loading">
+    Loading latest news...
+</div>
+
+<script>
+const RSS_API =
+"https://api.rss2json.com/v1/api.json?rss_url=";
+
+const feeds = {
+    geopolitics: [
+        "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "https://www.aljazeera.com/xml/rss/all.xml",
+        "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+        "https://www.reutersagency.com/feed/?best-topics=world&post_type=best"
+    ],
+
+    india: [
+        "https://www.thehindu.com/news/national/feeder/default.rss",
+        "https://indianexpress.com/section/india/feed/",
+        "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"
+    ],
+
+    tamilnadu: [
+        "https://www.thehindu.com/news/national/tamil-nadu/feeder/default.rss",
+        "https://timesofindia.indiatimes.com/rssfeeds/-2128833038.cms"
+    ]
+};
+
+function cleanHTML(html) {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div.innerText.substring(0, 200) + "...";
+}
+
+async function fetchFeed(feedUrl) {
+    try {
+        const response = await fetch(
+            RSS_API + encodeURIComponent(feedUrl)
+        );
+
+        const data = await response.json();
+
+        if (!data.items) return [];
+
+        return data.items.slice(0, 12).map(item => ({
+            title: item.title || "No Title",
+            link: item.link || "#",
+            description:
+                cleanHTML(item.description || ""),
+            pubDate:
+                item.pubDate || ""
+        }));
+
+    } catch (error) {
+        console.error(
+            "Feed failed:",
+            feedUrl,
+            error
+        );
+        return [];
+    }
+}
+
+function renderNews(news, containerId) {
+    const container =
+        document.getElementById(containerId);
+
+    container.innerHTML = "";
+
+    if (!news.length) {
+        container.innerHTML =
+        "<p class='error'>No news available</p>";
+        return;
+    }
+
+    news.forEach(item => {
+        const card =
+            document.createElement("div");
+
+        card.className = "news-item";
+
+        card.innerHTML = `
+            <a href="${item.link}" target="_blank">
+                ${item.title}
+            </a>
+
+            <p>${item.description}</p>
+
+            <small>
+                ${new Date(
+                    item.pubDate
+                ).toLocaleString()}
+            </small>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
+async function loadNews() {
+
+    document.getElementById(
+        "loading"
+    ).style.display = "block";
+
+    try {
+
+        const [geo, india, tamil] =
+            await Promise.all([
+
+            Promise.all(
+                feeds.geopolitics.map(fetchFeed)
+            ),
+
+            Promise.all(
+                feeds.india.map(fetchFeed)
+            ),
+
+            Promise.all(
+                feeds.tamilnadu.map(fetchFeed)
+            )
+        ]);
+
+        const geoFlat =
+            geo.flat();
+
+        const indiaFlat =
+            india.flat();
+
+        const tamilFlat =
+            tamil.flat();
+
+        renderNews(
+            geoFlat,
+            "geoPoliticsNews"
+        );
+
+        renderNews(
+            indiaFlat,
+            "indiaNews"
+        );
+
+        renderNews(
+            tamilFlat,
+            "tamilNews"
+        );
+
+        const tickerHeadlines = [
+            ...geoFlat.slice(0,4),
+            ...indiaFlat.slice(0,3),
+            ...tamilFlat.slice(0,3)
+        ]
+        .map(x => x.title)
+        .join(" 🔴 ");
+
+        document.getElementById(
+            "tickerText"
+        ).textContent =
+            tickerHeadlines ||
+            "No breaking news available";
+
+        document.getElementById(
+            "lastUpdated"
+        ).textContent =
+            "Last Updated: " +
+            " " +
+            new Date().toLocaleString();
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById(
+            "loading"
+        ).innerHTML =
+            "Failed to load news.";
+    }
+
+    document.getElementById(
+        "loading"
+    ).style.display = "none";
+}
+
+document.getElementById("search")
+.addEventListener("input", function () {
+
+    const value =
+        this.value.toLowerCase();
+
+    document.querySelectorAll(
+        ".news-item, .fin-news-item"
+    ).forEach(item => {
+
+        const text =
+            item.innerText.toLowerCase();
+
+        item.style.display =
+            text.includes(value)
+            ? "block"
+            : "none";
+    });
+
+    // Filter map markers
+    filterMapMarkers(value);
+});
+
+loadNews();
+
+setInterval(loadNews, 300000);
+
+
+/* ==========================================================================
+   DYNAMIC REAL-TIME HOTSPOTS SYSTEM
+   ========================================================================== */
+
+let mapInstance = null;
+let mapMarkerLayerGroup = null;
+let currentHotspots = [];
+let mapMarkerMap = new Map(); // Track markers by event ID
+
+// Location name → coordinates mapping for conflict resolution
+const locationCoordinates = {
+    'ukraine': { lat: 49, lon: 32 },
+    'russia': { lat: 60, lon: 100 },
+    'gaza': { lat: 31.9, lon: 35.2 },
+    'palestine': { lat: 31.9, lon: 35.2 },
+    'israel': { lat: 31.5, lon: 35.0 },
+    'middle east': { lat: 28, lon: 45 },
+    'iran': { lat: 32, lon: 53 },
+    'yemen': { lat: 15.4, lon: 48.5 },
+    'taiwan': { lat: 24, lon: 121 },
+    'china': { lat: 35, lon: 105 },
+    'south china sea': { lat: 12, lon: 114 },
+    'philippines': { lat: 12.9, lon: 121.8 },
+    'south korea': { lat: 37, lon: 127 },
+    'north korea': { lat: 40, lon: 127 },
+    'afghanistan': { lat: 34, lon: 69 },
+    'pakistan': { lat: 30, lon: 69 },
+    'india': { lat: 23, lon: 82 },
+    'kashmir': { lat: 34.2, lon: 75.6 },
+    'sudan': { lat: 15, lon: 32 },
+    'syria': { lat: 35, lon: 38 },
+    'lebanon': { lat: 33.8, lon: 35.5 },
+    'turkey': { lat: 39, lon: 35 },
+    'iraq': { lat: 33, lon: 44 },
+    'horn of africa': { lat: 3, lon: 37 },
+    'ethiopia': { lat: 9.15, lon: 40.49 },
+    'eritrea': { lat: 15.2, lon: 39.8 },
+    'somalia': { lat: 10, lon: 46 },
+    'congo': { lat: -1, lon: 30 },
+    'drc': { lat: -1, lon: 30 },
+    'kenya': { lat: 0, lon: 37 },
+    'south africa': { lat: -30, lon: 22 },
+    'mozambique': { lat: -18, lon: 35 },
+    'myanmar': { lat: 22, lon: 97 },
+    'thailand': { lat: 15, lon: 101 },
+    'venezuela': { lat: 6.4, lon: -66.6 },
+    'colombia': { lat: 4.6, lon: -74.1 },
+    'mexico': { lat: 23, lon: -102 },
+    'haiti': { lat: 19, lon: -72 },
+    'niger': { lat: 17.6, lon: 8.7 },
+    'mali': { lat: 17.6, lon: -4.0 },
+    'libya': { lat: 26.3, lon: 17.2 },
+    'egypt': { lat: 26.8, lon: 30.8 },
+    'sinai': { lat: 28.5, lon: 33.8 }
+};
+
+// Severity detection for conflicts based on keywords
+function detectConflictSeverity(title, description) {
+    const combined = (title + ' ' + description).toLowerCase();
+    
+    // Critical/Red
+    if (combined.match(/war|conflict|bombing|attack|killed|dead|casualties|invasion|military operation|armed|strike/i)) {
+        return { level: 'critical', color: '#ef4444' };
+    }
+    
+    // Moderate/Orange
+    if (combined.match(/crisis|tension|protest|clashes|unrest|standoff|evacuate|siege/i)) {
+        return { level: 'moderate', color: '#f97316' };
+    }
+    
+    // Minor/Yellow
+    if (combined.match(/warning|alert|dispute|threat|border|exercise/i)) {
+        return { level: 'minor', color: '#facc15' };
+    }
+    
+    return { level: 'minor', color: '#facc15' };
+}
+
+// Disaster severity from GDACS
+function getDisasterSeverity(title, description) {
+    const combined = (title + ' ' + description).toLowerCase();
+    
+    // Extract severity if present
+    if (combined.includes('red alert') || combined.includes('magnitude 7') || combined.includes('category 4') || combined.includes('category 5')) {
+        return { level: 'critical', color: '#ef4444' };
+    }
+    
+    if (combined.includes('orange alert') || combined.includes('magnitude 6') || combined.includes('category 2') || combined.includes('category 3')) {
+        return { level: 'moderate', color: '#f97316' };
+    }
+    
+    return { level: 'minor', color: '#facc15' };
+}
+
+// Extract location from news title/description
+function extractLocationFromText(text) {
+    const lowerText = text.toLowerCase();
+    
+    for (const [location, coords] of Object.entries(locationCoordinates)) {
+        if (lowerText.includes(location)) {
+            return coords;
+        }
+    }
+    
+    return null;
+}
+
+// Fetch from GDACS for natural disasters
+async function fetchGDACS() {
+    try {
+        const response = await fetch(
+            RSS_API + encodeURIComponent('https://www.gdacs.org/xml/rss.xml')
+        );
+        const data = await response.json();
+        
+        if (!data.items) return [];
+        
+        const now = new Date();
+        const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        
+        return data.items
+            .filter(item => {
+                const itemDate = new Date(item.pubDate);
+                return itemDate > cutoff24h;
+            })
+            .map(item => {
+                const severity = getDisasterSeverity(item.title, item.description || '');
+                const coords = extractLocationFromText(item.title + ' ' + (item.description || ''));
+                
+                return {
+                    id: 'gdacs_' + item.pubDate + '_' + Math.random(),
+                    label: item.title.substring(0, 60),
+                    detail: item.description ? item.description.substring(0, 120) : 'Natural disaster alert',
+                    category: 'disaster',
+                    lat: coords ? coords.lat : null,
+                    lon: coords ? coords.lon : null,
+                    color: severity.color,
+                    severity: severity.level,
+                    pubDate: item.pubDate,
+                    link: item.link || '#'
+                };
+            })
+            .filter(item => item.lat !== null && item.lon !== null);
+            
+    } catch (error) {
+        console.error('GDACS fetch failed:', error);
+        return [];
+    }
+}
+
+// Fetch from news feeds for conflicts
+async function fetchConflictNews() {
+    try {
+        const conflictFeeds = [
+            "https://feeds.bbci.co.uk/news/world/rss.xml",
+            "https://www.aljazeera.com/xml/rss/all.xml"
+        ];
+        
+        const allItems = [];
+        
+        for (const feed of conflictFeeds) {
+            try {
+                const response = await fetch(RSS_API + encodeURIComponent(feed));
+                const data = await response.json();
+                
+                if (data.items) {
+                    allItems.push(...data.items);
+                }
+            } catch (e) {
+                console.error('Feed fetch error:', feed, e);
+            }
+        }
+        
+        const now = new Date();
+        const cutoff72h = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+        
+        const hotspots = [];
+        const seenLocations = new Set();
+        
+        for (const item of allItems) {
+            const itemDate = new Date(item.pubDate);
+            if (itemDate < cutoff72h) continue;
+            
+            // Skip financial/non-conflict news
+            if (item.title.match(/market|stock|economy|trade|price|crypto/i)) continue;
+            
+            const coords = extractLocationFromText(item.title + ' ' + (item.description || ''));
+            if (!coords) continue;
+            
+            const locationKey = coords.lat + '_' + coords.lon;
+            if (seenLocations.has(locationKey)) continue;
+            
+            seenLocations.add(locationKey);
+            
+            const severity = detectConflictSeverity(item.title, item.description || '');
+            
+            hotspots.push({
+                id: 'conflict_' + locationKey + '_' + Math.random(),
+                label: item.title.substring(0, 70),
+                detail: item.description ? item.description.substring(0, 120) : 'Conflict/tension reported',
+                category: 'conflict',
+                lat: coords.lat,
+                lon: coords.lon,
+                color: severity.color,
+                severity: severity.level,
+                pubDate: item.pubDate,
+                link: item.link || '#'
+            });
+        }
+        
+        return hotspots;
+        
+    } catch (error) {
+        console.error('Conflict news fetch failed:', error);
+        return [];
+    }
+}
+
+// Merge and deduplicate hotspots
+async function fetchDynamicHotspots() {
+    const status = document.getElementById('mapStatus');
+    status.textContent = '⏳ Syncing live data...';
+    status.className = 'map-status updating';
+    
+    try {
+        const [disasters, conflicts] = await Promise.all([
+            fetchGDACS(),
+            fetchConflictNews()
+        ]);
+        
+        currentHotspots = [...disasters, ...conflicts];
+        
+        status.textContent = '✓ Live data synced (' + currentHotspots.length + ' active)';
+        status.className = 'map-status synced';
+        setTimeout(() => {
+            status.className = 'map-status';
+            status.textContent = '🔄 Updates every 5 min';
+        }, 3000);
+        
+        return currentHotspots;
+        
+    } catch (error) {
+        console.error('Hotspot fetch error:', error);
+        status.textContent = '✗ Sync failed, retrying...';
+        status.className = 'map-status error';
+        return [];
+    }
+}
+
+function timeAgo(dateParam) {
+    if (!dateParam) return "";
+    const date = new Date(dateParam);
+    const today = new Date();
+    const diffMs = today - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHrs = Math.floor(diffMins / 60);
+
+    if (diffMins < 60) {
+        return diffMins <= 0 ? "Just now" : `${diffMins} minutes ago`;
+    } else if (diffHrs < 24) {
+        return `${diffHrs} hours ago`;
+    } else {
+        return Math.floor(diffHrs / 24) + " days ago";
+    }
+}
+
+async function refreshHotspots() {
+    if (!mapMarkerLayerGroup) return;
+    mapMarkerLayerGroup.clearLayers();
+    mapMarkerMap.clear();
+
+    const hotspots = await fetchDynamicHotspots();
+
+    hotspots.forEach(spot => {
+        const pulseIcon = L.divIcon({
+            html: `<div class="pulse-ring" style="border-color: ${spot.color}; box-shadow: 0 0 6px ${spot.color};"></div>`,
+            className: '',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+        
+        const pulseMarker = L.marker([spot.lat, spot.lon], { icon: pulseIcon });
+
+        const coreMarker = L.circleMarker([spot.lat, spot.lon], {
+            radius: 7,
+            fillColor: spot.color,
+            color: '#ffffff',
+            weight: 1.5,
+            fillOpacity: 0.9
+        });
+
+        const categoryEmoji = spot.category === 'disaster' ? '🌊' : '⚠️';
+        
+        const popContent = `
+            <div style="font-family:'Segoe UI',sans-serif; padding:6px; max-width:280px;">
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                    <span style="font-size:16px;">${categoryEmoji}</span>
+                    <span style="font-size:11px; padding:2px 8px; border-radius:12px; color:white; background-color:${spot.color}; font-weight:bold;">
+                        ${spot.severity.toUpperCase()}
+                    </span>
+                </div>
+                <b style="font-size:13px; color:${spot.color}; display:block; margin-bottom:4px;">${spot.label}</b>
+                <span style="font-size:11px; color:#cbd5e1; display:block; line-height:1.4; margin-bottom:8px;">${spot.detail}</span>
+                <div style="font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; gap:8px;">
+                    <span>${timeAgo(spot.pubDate)}</span>
+                    <a href="${spot.link}" target="_blank" style="color:#7dd3fc; text-decoration:none; font-weight:bold;">More →</a>
+                </div>
+            </div>
+        `;
+        
+        coreMarker.bindPopup(popContent);
+        pulseMarker.bindPopup(popContent);
+        
+        mapMarkerMap.set(spot.id, { 
+            pulse: pulseMarker, 
+            core: coreMarker,
+            label: spot.label,
+            detail: spot.detail
+        });
+
+        mapMarkerLayerGroup.addLayer(pulseMarker);
+        mapMarkerLayerGroup.addLayer(coreMarker);
+    });
+}
+
+function filterMapMarkers(searchValue) {
+    const value = searchValue.toLowerCase();
+    
+    mapMarkerMap.forEach((marker, eventId) => {
+        const matchesSearch = !value || 
+                             marker.label.toLowerCase().includes(value) || 
+                             marker.detail.toLowerCase().includes(value);
+        
+        if (matchesSearch) {
+            marker.pulse.setOpacity(1);
+            marker.core.setOpacity(1);
+        } else {
+            marker.pulse.setOpacity(0.2);
+            marker.core.setOpacity(0.2);
+        }
+    });
+}
+
+function extractSourceName(urlStr) {
+    try {
+        const url = new URL(urlStr);
+        return url.hostname.replace('www.', '');
+    } catch(e) {
+        return "Financial Feed";
+    }
+}
+
+function getCategoryTag(titleStr) {
+    const title = titleStr.toLowerCase();
+    if (title.includes("market") || title.includes("stock") || title.includes("nifty") || title.includes("sensex")) {
+        return { text: "📊 Markets", bg: "#3b82f6" };
+    }
+    if (title.includes("crypto") || title.includes("bitcoin") || title.includes("ethereum")) {
+        return { text: "₿ Crypto", bg: "#f59e0b" };
+    }
+    if (title.includes("oil") || title.includes("gold") || title.includes("commodity")) {
+        return { text: "🛢️ Commodities", bg: "#10b981" };
+    }
+    if (title.includes("fed") || title.includes("rbi") || title.includes("rate") || title.includes("inflation")) {
+        return { text: "🏦 Central Banks", bg: "#8b5cf6" };
+    }
+    if (title.includes("india") || title.includes("rupee")) {
+        return { text: "🇮🇳 India", bg: "#f97316" };
+    }
+    return { text: "💼 Business", bg: "#64748b" };
+}
+
+const financialFeeds = [
+    "https://feeds.bloomberg.com/markets/news.rss",
+    "https://www.investing.com/rss/news.rss",
+    "https://feeds.reuters.com/reuters/businessNews",
+    "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines",
+    "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+    "https://www.livemint.com/rss/markets",
+    "https://feeds.bbci.co.uk/news/business/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"
+];
+
+async function loadFinancialNews() {
+    const container = document.getElementById("finNewsPanel");
+    container.innerHTML = '<p style="color:#94a3b8;">Loading financial news...</p>';
+
+    const fetchPromises = financialFeeds.map(async (url) => {
+        const res = await fetch(RSS_API + encodeURIComponent(url));
+        if (!res.ok) throw new Error("HTTP error");
+        const data = await res.json();
+        if (!data.items) return [];
+        
+        const source = extractSourceName(url);
+        return data.items.map(item => ({
+            title: item.title ? item.title.trim() : "No Title",
+            link: item.link || "#",
+            pubDate: item.pubDate || "",
+            source: source
+        }));
+    });
+
+    const results = await Promise.allSettled(fetchPromises);
+    let masterArticlesList = [];
+
+    results.forEach(result => {
+        if (result.status === "fulfilled") {
+            masterArticlesList = masterArticlesList.concat(result.value);
+        }
+    });
+
+    const seenTitles = new Set();
+    const uniqueArticles = [];
+
+    masterArticlesList.forEach(article => {
+        const signature = article.title.toLowerCase();
+        if (!seenTitles.has(signature)) {
+            seenTitles.add(signature);
+            uniqueArticles.push(article);
+        }
+    });
+
+    uniqueArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    const top30 = uniqueArticles.slice(0, 30);
+
+    container.innerHTML = "";
+    if (top30.length === 0) {
+        container.innerHTML = '<p class="error">No financial news items available</p>';
+        return;
+    }
+
+    const currentSearchVal = document.getElementById("search").value.toLowerCase();
+
+    top30.forEach(item => {
+        const tag = getCategoryTag(item.title);
+        const card = document.createElement("div");
+        card.className = "fin-news-item";
+        
+        if (currentSearchVal && !item.title.toLowerCase().includes(currentSearchVal)) {
+            card.style.display = "none";
+        }
+
+        card.innerHTML = `
+            <div style="display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 20px; color: white; margin-bottom: 6px; font-weight: bold; background-color: ${tag.bg};">
+                ${tag.text}
+            </div>
+            <a href="${item.link}" target="_blank">${item.title}</a>
+            <small>${item.source} · ${timeAgo(item.pubDate)}</small>
+        `;
+        container.appendChild(card);
+    });
+
+    document.getElementById("finNewsUpdated").textContent = "Updated: " + new Date().toLocaleTimeString();
+}
+
+function initMapAndFeatures() {
+    mapInstance = L.map('worldMap', {
+        center: [20, 0],
+        zoom: 2,
+        scrollWheelZoom: false,
+        zoomControl: true
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(mapInstance);
+
+    mapMarkerLayerGroup = L.layerGroup().addTo(mapInstance);
+
+    refreshHotspots();
+
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.style.background = 'rgba(15,25,50,0.85)';
+        div.style.padding = '10px';
+        div.style.borderRadius = '10px';
+        div.style.fontSize = '12px';
+        div.style.color = '#e2e8f0';
+        div.style.border = '1px solid rgba(255,255,255,0.1)';
+        div.style.lineHeight = '1.6';
+        
+        div.innerHTML = `
+            <div style="margin-bottom: 4px; font-weight:bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom:4px;">Severity Levels</div>
+            <div style="margin-bottom: 2px;"><span style="color:#ef4444; font-size:14px; margin-right:4px;">🔴</span> Critical</div>
+            <div style="margin-bottom: 2px;"><span style="color:#f97316; font-size:14px; margin-right:4px;">🟠</span> Moderate</div>
+            <div><span style="color:#facc15; font-size:14px; margin-right:4px;">🟡</span> Minor Alert</div>
+        `;
+        return div;
+    };
+    legend.addTo(mapInstance);
+
+    setTimeout(function() { 
+        mapInstance.invalidateSize(); 
+    }, 300);
+
+    window.addEventListener('resize', function() { 
+        mapInstance.invalidateSize(); 
+    });
+
+    loadFinancialNews();
+
+    setInterval(refreshHotspots, 300000); // Refresh every 5 minutes
+    setInterval(loadFinancialNews, 300000);
+}
+
+document.addEventListener("DOMContentLoaded", initMapAndFeatures);
+</script>
+
+</body>
+</html>
